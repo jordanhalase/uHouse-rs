@@ -4,19 +4,15 @@
 #![feature(generic_arg_infer)]
 
 use core::{
-    iter::zip,
     convert::From,
+    iter::zip,
+    mem::swap,
+    ops::{Add, Sub},
     panic::PanicInfo,
 };
 use arduino_hal;
 use avr_progmem::progmem;
 use ssd1306::{I2CDisplayInterface, Ssd1306, prelude::*};
-use embedded_graphics::{
-    Drawable,
-    geometry::Point,
-    primitives::{line::Line, Primitive, PrimitiveStyle},
-    pixelcolor::BinaryColor,
-};
 
 /// Fixed-point type
 /// 
@@ -32,7 +28,7 @@ type IFixed = i16;
 
 /// Private fixed-point intermediate type for multiplication
 /// 
-/// Use [`IFixed'] instead for general use.
+/// Use [`IFixed`] instead for general use.
 type IFixedMul = i32;
 
 /// How far into the screen to render the mesh
@@ -43,12 +39,16 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
+/// 2D vector type of [`IFixed`]
 #[derive(Copy, Clone, Default)]
 struct Vec2 {
     x: IFixed,
     y: IFixed,
 }
 
+/// Private intermediate 2D vector type for multiplication
+/// 
+/// Use [`Vec2`] instead for general use.
 struct Vec2Mul {
     x: IFixedMul,
     y: IFixedMul,
@@ -72,12 +72,6 @@ impl From<Vec2Mul> for Vec2 {
     }
 }
 
-impl From<Vec2> for Point {
-    fn from(value: Vec2) -> Self {
-        Self::new(value.x as i32, value.y as i32)
-    }
-}
-
 /// Convenience macro for creating vectors via `vec2!(x, y)`
 macro_rules! vec2 {
     ($x:expr, $y:expr) => {
@@ -87,6 +81,7 @@ macro_rules! vec2 {
 
 impl Vec2 {
 
+    /// Multiply by another vector as a complex number
     #[must_use]
     fn rotate(self, other: Self) -> Self {
         let v1 = Vec2Mul::from(self);
@@ -97,6 +92,7 @@ impl Vec2 {
         })
     }
 
+    /// Swap x and y
     #[must_use]
     fn swap(self) -> Self {
         Self {
@@ -104,9 +100,18 @@ impl Vec2 {
             y: self.x,
         }
     }
+
+    /// Component-wise absolute value
+    #[must_use]
+    fn component_abs(self) -> Self {
+        Self {
+            x: self.x.abs(),
+            y: self.y.abs(),
+        }
+    }
 }
 
-impl core::ops::Add for Vec2 {
+impl Add for Vec2 {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
@@ -117,6 +122,18 @@ impl core::ops::Add for Vec2 {
     }
 }
 
+impl Sub for Vec2 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+/// 3D vector type of [`IFixed`]
 #[derive(Copy, Clone)]
 struct Vec3 {
     x: IFixed,
@@ -131,11 +148,13 @@ macro_rules! vec3 {
     }
 }
 
-const NUM_VERTS: u8 = 57;
-const NUM_LINES: u16 = 68;
+const NUM_VERTS: usize = 57;
+const NUM_LINES: usize = 68;
 
 progmem! {
-    static progmem MESH_VERTS: [Vec3; NUM_VERTS as usize] = [
+
+    /// Mesh vertices in program memory
+    static progmem MESH_VERTS: [Vec3; NUM_VERTS] = [
         // Cube
         vec3!( 0x800,  0x800,  0x800),
         vec3!(-0x800,  0x800,  0x800),
@@ -212,7 +231,8 @@ progmem! {
         vec3!(-0x100,  0x800, -0xc00),
     ];
 
-    static progmem MESH_INDICES: [(u8, u8); NUM_LINES as usize] = [
+    /// Line segments as indices into [`MESH_VERTS`]
+    static progmem MESH_INDICES: [(u8, u8); NUM_LINES] = [
         (0, 1), (1, 2), (2, 3), (3, 0),
         (4, 5), (5, 6), (6, 7), (7, 4),
         (0, 4), (1, 5), (2, 6), (3, 7),
@@ -229,15 +249,76 @@ progmem! {
     ];
 }
 
-/// Constant rotation vector of 2 degrees per frame
+/// Constant rotation vector of 3 degrees per frame
 /// 
-/// From the equation round(4096*exp(3j*pi/180))
+/// From the equation `round(4096*exp(3j*pi/180))`
 const ROT0: Vec2 = vec2!(0xffa, 0xd6);
 
-/// From the equation round(4096*exp(1j*pi/180))
+/// Constant rotation vector of 1 degree per frame
+/// 
+/// From the equation `round(4096*exp(1j*pi/180))`
 const LOC0: Vec2 = vec2!(0xfff, 0x47);
 
+const SCREEN_WIDTH: IFixed = 128;
+const SCREEN_HEIGHT: IFixed = 64;
 const SCREEN_CENTER: Vec2 = vec2!(64, 32);
+
+/// Very rudimentary algorithm to discard off-screen geometry
+fn point_accept(v: Vec2) -> bool {
+    if v.x < 0 {
+        false
+    } else if v.x >= SCREEN_WIDTH {
+        false
+    } else if v.y < 0 {
+        false
+    } else if v.y >= SCREEN_HEIGHT {
+        false
+    } else {
+        true
+    }
+}
+
+/// Bresenham's line algorithm
+fn draw_line<F: FnMut(u32, u32)>(mut put_pixel: F, mut v0: Vec2, mut v1: Vec2) {
+    let should_swap = {
+        let d = (v1 - v0).component_abs();
+        d.y > d.x
+    };
+
+    if should_swap {
+        swap(&mut v0.x, &mut v0.y);
+        swap(&mut v1.x, &mut v1.y);
+    }
+
+    if v0.x > v1.x {
+        swap(&mut v0, &mut v1);
+    }
+
+    let dx = v1.x - v0.x;
+    let dy = (v1.y - v0.y).abs();
+
+    let y_step = if v0.y < v1.y { 1 } else { -1 };
+    let mut half_diff = -(dx >> 1);
+
+    while v0.x <= v1.x {
+        if should_swap {
+            if point_accept(v0.swap()) {
+                put_pixel(v0.y as u32, v0.x as u32);
+            }
+        } else {
+            if point_accept(v0) {
+                put_pixel(v0.x as u32, v0.y as u32);
+            }
+        }
+
+        half_diff += dy;
+        if half_diff > 0 {
+            half_diff -= dx;
+            v0.y += y_step;
+        }
+        v0.x += 1;
+    }
+}
 
 #[arduino_hal::entry]
 fn main() -> ! {
@@ -259,12 +340,9 @@ fn main() -> ! {
     ).into_buffered_graphics_mode();
     display.init().unwrap();
 
-    arduino_hal::delay_ms(10);
-
     display.clear();
-    display.flush().unwrap();
 
-    let mut screen_verts: [Vec2; NUM_VERTS as usize] = [Vec2::default(); _];
+    let mut screen_verts: [Vec2; NUM_VERTS] = [Vec2::default(); _];
 
     // Rotation vector, updated per-frame
     let mut rotation = vec2!(0x1000, 0);
@@ -313,18 +391,15 @@ fn main() -> ! {
 
         display.clear();
 
-        // TODO: Faster line algorithm
-
-        // Draw lines between each vertex
+        // Faster line algorithm
         for pair in MESH_INDICES.iter() {
-            // SAFETY: Each index is hard-coded to be in-bounds on the vertices
             unsafe {
-                let p1 = Point::from(*screen_verts.get_unchecked(pair.0 as usize));
-                let p2 = Point::from(*screen_verts.get_unchecked(pair.1 as usize));
-                Line::new(p1, p2)
-                    .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-                    .draw(&mut display)
-                    .unwrap_unchecked();
+                // SAFETY: Array is hard-coded to index into vertices so there
+                // is no chance for an out-of-bounds access
+                let v0 = *screen_verts.get_unchecked(pair.0 as usize);
+                let v1 = *screen_verts.get_unchecked(pair.1 as usize);
+            
+                draw_line(|x, y| display.set_pixel(x, y, true), v0, v1);
             }
         }
 
@@ -333,6 +408,6 @@ fn main() -> ! {
             display.set_pixel(v.x as u32, v.y as u32, true);
         }*/
 
-        unsafe { display.flush().unwrap_unchecked() };
+        display.flush().unwrap();
     }
 }
