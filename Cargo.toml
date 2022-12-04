@@ -12,7 +12,6 @@ bench = false
 
 [dependencies]
 ssd1306 = "0.7"
-embedded-graphics = "0.7"
 avr-progmem = "0.3"
 
 [dependencies.arduino-hal]
