@@ -22,7 +22,7 @@ rev = "4170a773d4d76cc93433d2455ed8b14e573ebe70"
 features = ["arduino-uno"]
 
 [features]
-default = ["fps"]
+default = []
 fps = ["dep:ufmt", "dep:avr-device"]
 
 [profile.dev]
