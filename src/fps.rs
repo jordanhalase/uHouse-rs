@@ -1,9 +1,9 @@
 #![cfg(feature = "fps")]
 
-use arduino_hal::{self, Peripherals};
+use arduino_hal;
 use ufmt::{uwriteln, uWrite};
 use core::sync::atomic::{AtomicBool, Ordering};
-use avr_device;
+use avr_device::atmega328p::TC1;
 
 static mut FPS_READY: AtomicBool = AtomicBool::new(false);
 
@@ -17,7 +17,8 @@ impl<W> FpsCounter<W> where W: uWrite {
     /// Create a new FPS Counter
     /// 
     /// This currently takes full ownership of the serial device
-    pub fn new(serial: W) -> Self {
+    pub fn new(serial: W, tc1: TC1) -> Self {
+        setup_timer1(&tc1);
         Self {
             count: 0,
             serial: serial,
@@ -30,21 +31,19 @@ impl<W> FpsCounter<W> where W: uWrite {
     pub fn update(&mut self) {
         self.count += 1;
 
-        // SAFETY: Modified only by timer interrupt and instances of Self
-        // Self should be made into a singleton to prevent any misuse cases
+        // SAFETY: We own TC1 so we are effectively a singleton
         if unsafe { FPS_READY.load(Ordering::Acquire) } {
+            unsafe { FPS_READY.store(false, Ordering::Release); }
             let _ = uwriteln!(self.serial, "{}", self.count);
             self.count = 0;
-            unsafe { FPS_READY.store(false, Ordering::Release); }
         }
     }
 }
 
-pub fn setup_timer1(dp: &Peripherals) {
+fn setup_timer1(tc1: &TC1) {
     use arduino_hal::pac::tc1::tccr1b::CS1_A;
 
     const CLOCK_SOURCE: CS1_A = CS1_A::PRESCALE_256;
-    let tc1 = &dp.TC1;
     tc1.tccr1a.write(|w| w.wgm1().bits(0));
     tc1.tccr1b.write(|w| w.cs1()
         .variant(CLOCK_SOURCE)

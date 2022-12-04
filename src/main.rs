@@ -2,7 +2,6 @@
 #![no_main]
 
 #![feature(generic_arg_infer)]
-//#![feature(stmt_expr_attributes)]
 #![feature(abi_avr_interrupt)]
 
 use core::{
@@ -329,18 +328,17 @@ fn draw_line<F: FnMut(u32, u32)>(mut put_pixel: F, mut v0: Vec2, mut v1: Vec2) {
 fn main() -> ! {
     let dp = arduino_hal::Peripherals::take().unwrap();
 
-    #[cfg(feature = "fps")]
-    fps::setup_timer1(&dp);
-
     let pins = arduino_hal::pins!(dp);
 
     #[cfg(feature = "fps")]
     let mut fps_counter = fps::FpsCounter::new(
-        arduino_hal::default_serial!(dp, pins, 57600)
+        arduino_hal::default_serial!(dp, pins, 57600),
+        dp.TC1,
     );
 
     #[cfg(feature = "fps")]
     unsafe {
+        // SAFETY: All interrupts and data are configured before calling
         avr_device::interrupt::enable();
     }
 
@@ -371,8 +369,6 @@ fn main() -> ! {
 
     let mut rotation_counter: u16 = 0;
     let mut location_counter: u16 = 0;
-
-    //uwriteln!(&mut serial, "Hello!").unwrap();
 
     loop {
         
