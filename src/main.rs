@@ -2,6 +2,8 @@
 #![no_main]
 
 #![feature(generic_arg_infer)]
+#![feature(stmt_expr_attributes)]
+#![feature(abi_avr_interrupt)]
 
 use core::{
     convert::From,
@@ -10,9 +12,16 @@ use core::{
     ops::{Add, Sub},
     panic::PanicInfo,
 };
-use arduino_hal;
+use arduino_hal::{self, Peripherals};
 use avr_progmem::progmem;
 use ssd1306::{I2CDisplayInterface, Ssd1306, prelude::*};
+
+#[cfg(feature = "fps")]
+use ufmt::{uwriteln, uWrite};
+#[cfg(feature = "fps")]
+use core::sync::atomic::{AtomicBool, Ordering};
+//#[cfg(feature = "fps")]
+use avr_device;
 
 /// Fixed-point type
 /// 
@@ -320,10 +329,60 @@ fn draw_line<F: FnMut(u32, u32)>(mut put_pixel: F, mut v0: Vec2, mut v1: Vec2) {
     }
 }
 
+#[cfg(feature = "fps")]
+static mut FPS_READY: AtomicBool = AtomicBool::new(false);
+
+#[cfg(feature = "fps")]
+fn setup_timer1(dp: &Peripherals) {
+    use arduino_hal::pac::tc1::tccr1b::CS1_A;
+
+    const CLOCK_SOURCE: CS1_A = CS1_A::PRESCALE_256;
+    let tc1 = &dp.TC1;
+    tc1.tccr1a.write(|w| w.wgm1().bits(0));
+    tc1.tccr1b.write(|w| w.cs1()
+        .variant(CLOCK_SOURCE)
+        .wgm1()
+        .bits(0b01)
+    );
+    tc1.tcnt1.write(|w| unsafe { w.bits(0) });
+    tc1.ocr1a.write(|w| unsafe { w.bits(62499u16) }); // 16e6 >> 8
+    tc1.timsk1.write(|w| w.ocie1a().set_bit()); // Enable this interrupt
+}
+
+#[cfg(feature = "fps")]
+#[avr_device::interrupt(atmega328p)]
+fn TIMER1_COMPA() {
+    unsafe {
+        FPS_READY.store(true, Ordering::SeqCst);
+    }
+}
+
+#[cfg(feature = "fps")]
+fn maybe_print_fps<W: uWrite>(w: &mut W, frames: &mut u16) {
+    *frames += 1;
+    if unsafe { FPS_READY.load(Ordering::SeqCst) } {
+        let _ = uwriteln!(w, "{}", *frames);
+        *frames = 0;
+        unsafe { FPS_READY.store(false, Ordering::SeqCst); }
+    }
+}
+
 #[arduino_hal::entry]
 fn main() -> ! {
     let dp = arduino_hal::Peripherals::take().unwrap();
+    #[cfg(feature = "fps")]
+    setup_timer1(&dp);
     let pins = arduino_hal::pins!(dp);
+
+    #[cfg(feature = "fps")]
+    let mut serial = arduino_hal::default_serial!(dp, pins, 57600);
+    #[cfg(feature = "fps")]
+    let mut fps_counter: u16 = 0;
+
+    #[cfg(feature = "fps")]
+    unsafe {
+        avr_device::interrupt::enable();
+    }
 
     let i2c = arduino_hal::I2c::new(
         dp.TWI,
@@ -352,6 +411,8 @@ fn main() -> ! {
 
     let mut rotation_counter: u16 = 0;
     let mut location_counter: u16 = 0;
+
+    //uwriteln!(&mut serial, "Hello!").unwrap();
 
     loop {
         
@@ -409,5 +470,8 @@ fn main() -> ! {
         }*/
 
         display.flush().unwrap();
+
+        #[cfg(feature = "fps")]
+        maybe_print_fps(&mut serial, &mut fps_counter);
     }
 }

@@ -12,7 +12,7 @@ dependencies = [
  "avr-hal-generic",
  "cfg-if 1.0.0",
  "embedded-hal",
- "ufmt",
+ "ufmt 0.1.2",
  "void",
 ]
 
@@ -59,7 +59,7 @@ dependencies = [
  "nb 0.1.3",
  "paste",
  "rustversion",
- "ufmt",
+ "ufmt 0.1.2",
  "void",
 ]
 
@@ -70,7 +70,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d40dd576c3ebfdb9b2b0acd41787d2beb2dd77d1184077a13d8f6c79ab52aacf"
 dependencies = [
  "cfg-if 1.0.0",
- "ufmt",
+ "ufmt 0.1.2",
 ]
 
 [[package]]
@@ -238,7 +238,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31d3c0c63312dfc9d8e5c71114d617018a19f6058674003c0da29ee8d8036cdd"
 dependencies = [
  "proc-macro-hack",
- "ufmt-macros",
+ "ufmt-macros 0.2.0",
+ "ufmt-write",
+]
+
+[[package]]
+name = "ufmt"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a64846ec02b57e9108d6469d98d1648782ad6bb150a95a9baac26900bbeab9d"
+dependencies = [
+ "ufmt-macros 0.3.0",
  "ufmt-write",
 ]
 
@@ -255,6 +265,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ufmt-macros"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d337d3be617449165cb4633c8dece429afd83f84051024079f97ad32a9663716"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "ufmt-write"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -265,8 +286,10 @@ name = "uhouse"
 version = "0.1.0"
 dependencies = [
  "arduino-hal",
+ "avr-device",
  "avr-progmem",
  "ssd1306",
+ "ufmt 0.2.0",
 ]
 
 [[package]]
