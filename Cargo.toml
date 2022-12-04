@@ -1,0 +1,32 @@
+[package]
+name = "uhouse"
+version = "0.1.0"
+authors = ["Jordan Halase <jordan@halase.me>"]
+edition = "2021"
+license = "MIT"
+
+[[bin]]
+name = "uhouse"
+test = false
+bench = false
+
+[dependencies]
+ssd1306 = "0.7"
+embedded-graphics = "0.7"
+avr-progmem = "0.3"
+
+[dependencies.arduino-hal]
+git = "https://github.com/rahix/avr-hal"
+rev = "4170a773d4d76cc93433d2455ed8b14e573ebe70"
+features = ["arduino-uno"]
+
+[profile.dev]
+panic = "abort"
+lto = true
+opt-level = "s"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
