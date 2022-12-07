@@ -26,7 +26,7 @@ use core::{
     mem::swap,
     panic::PanicInfo,
 };
-use arduino_hal;
+use arduino_hal::{self, clock::Clock};
 use avr_progmem::progmem;
 use ssd1306::{I2CDisplayInterface, Ssd1306, prelude::*};
 
@@ -37,6 +37,10 @@ mod fps;
 
 /// Pick your display size here
 type Display = DisplaySize128x64;
+
+/// Pick your clock frequency here
+#[allow(unused)]
+const CLOCK_FREQ: u32 = arduino_hal::DefaultClock::FREQ;
 
 const SCREEN_WIDTH: IFixed = Display::WIDTH as IFixed;
 const SCREEN_HEIGHT: IFixed = Display::HEIGHT as IFixed;
@@ -225,16 +229,17 @@ fn main() -> ! {
     let pins = arduino_hal::pins!(dp);
 
     #[cfg(feature = "fps")]
-    let mut fps_counter = fps::FpsCounter::new(
-        arduino_hal::default_serial!(dp, pins, 57600),
-        dp.TC1,
-    );
+    let mut fps_counter = unsafe {
+        let fps_counter = fps::FpsCounter::new(
+            arduino_hal::default_serial!(dp, pins, 57600),
+            dp.TC1,
+        );
 
-    #[cfg(feature = "fps")]
-    unsafe {
         // SAFETY: All interrupts and data are configured before calling
         avr_device::interrupt::enable();
-    }
+
+        fps_counter
+    };
 
     let i2c = arduino_hal::I2c::new(
         dp.TWI,
