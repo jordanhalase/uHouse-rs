@@ -1,34 +1,29 @@
 //! # μHouse-rs
-//! 
+//!
 //! This project only supports rendering to an SSD1306 display over I2C.
 //! It uses a resolution of 128x64 by default but can be changed by editing
 //! the [`Display`] variable.
-//! 
+//!
 //! This was made for an Arduino UNO running an Atmega328P.
-//! 
+//!
 //! For performance, this project uses a fixed point representation and no
 //! matrix math. Rotations are performed using complex number arithmetic and
 //! no clipping is performed.
-//! 
+//!
 //! Enjoy!
 
 #![no_std]
 #![no_main]
-
 #![feature(generic_arg_infer)]
 #![feature(abi_avr_interrupt)]
 
 #[macro_use]
 mod vec;
 
-use core::{
-    iter::zip,
-    mem::swap,
-    panic::PanicInfo,
-};
 use arduino_hal::{self, clock::Clock};
 use avr_progmem::progmem;
-use ssd1306::{I2CDisplayInterface, Ssd1306, prelude::*};
+use core::{iter::zip, mem::swap, panic::PanicInfo};
+use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 
 use vec::*;
 
@@ -44,7 +39,7 @@ const CLOCK_FREQ: u32 = arduino_hal::DefaultClock::FREQ;
 
 const SCREEN_WIDTH: IFixed = Display::WIDTH as IFixed;
 const SCREEN_HEIGHT: IFixed = Display::HEIGHT as IFixed;
-const SCREEN_CENTER: Vec2 = vec2!(SCREEN_WIDTH>>1, SCREEN_HEIGHT>>1);
+const SCREEN_CENTER: Vec2 = vec2!(SCREEN_WIDTH >> 1, SCREEN_HEIGHT >> 1);
 
 /// How far into the screen to render the mesh
 const MESH_DEPTH: IFixed = 0x2a00;
@@ -156,12 +151,12 @@ progmem! {
 }
 
 /// Constant rotation vector of 3 degrees per frame
-/// 
+///
 /// From the equation `round(4096*exp(3j*pi/180))`
 const ROT0: Vec2 = vec2!(0xffa, 0xd6);
 
 /// Constant rotation vector of 1 degree per frame
-/// 
+///
 /// From the equation `round(4096*exp(1j*pi/180))`
 const LOC0: Vec2 = vec2!(0xfff, 0x47);
 
@@ -230,10 +225,8 @@ fn main() -> ! {
 
     #[cfg(feature = "fps")]
     let mut fps_counter = unsafe {
-        let fps_counter = fps::FpsCounter::new(
-            arduino_hal::default_serial!(dp, pins, 57600),
-            dp.TC1,
-        );
+        let fps_counter =
+            fps::FpsCounter::new(arduino_hal::default_serial!(dp, pins, 57600), dp.TC1);
 
         // SAFETY: All interrupts and data are configured before calling
         avr_device::interrupt::enable();
@@ -245,15 +238,12 @@ fn main() -> ! {
         dp.TWI,
         pins.a4.into_pull_up_input(),
         pins.a5.into_pull_up_input(),
-        400000
+        400000,
     );
 
     let interface = I2CDisplayInterface::new(i2c);
-    let mut display = Ssd1306::new(
-        interface,
-        Display{},
-        DisplayRotation::Rotate0,
-    ).into_buffered_graphics_mode();
+    let mut display =
+        Ssd1306::new(interface, Display {}, DisplayRotation::Rotate0).into_buffered_graphics_mode();
     display.init().unwrap();
 
     display.clear();
@@ -270,7 +260,6 @@ fn main() -> ! {
     let mut location_counter: u16 = 0;
 
     loop {
-        
         // Rotate the rotation vectors
         rotation = rotation.rotate(ROT0);
         location = location.rotate(LOC0);
@@ -290,19 +279,14 @@ fn main() -> ! {
 
         // Transform vertices from model space into screen space
         for (v, screen) in zip(MESH_VERTS.iter(), &mut screen_verts) {
-            
             // Rotate mesh and move up and down
             let moved = vec2!(v.x, v.z).rotate(rotation) + location.swap();
-            let Vec3 { x, y, z } = vec3!(
-                moved.x,
-                v.y + (location.x >> 2),
-                moved.y
-            );
+            let Vec3 { x, y, z } = vec3!(moved.x, v.y + (location.x >> 2), moved.y);
 
             let z_prime: IFixed = (z + MESH_DEPTH) >> 6;
-            let perspective_divided = vec2!(x/z_prime, y/z_prime);
-            
-            *screen = perspective_divided + SCREEN_CENTER;   
+            let perspective_divided = vec2!(x / z_prime, y / z_prime);
+
+            *screen = perspective_divided + SCREEN_CENTER;
         }
 
         display.clear();
@@ -314,7 +298,7 @@ fn main() -> ! {
                 // is no chance for an out-of-bounds access
                 let v0 = *screen_verts.get_unchecked(pair.0 as usize);
                 let v1 = *screen_verts.get_unchecked(pair.1 as usize);
-            
+
                 draw_line(|x, y| display.set_pixel(x, y, true), v0, v1);
             }
         }
