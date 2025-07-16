@@ -14,11 +14,11 @@ bench = false
 ssd1306 = "0.7"
 avr-progmem = "0.4"
 ufmt = { version = "0.2", optional = true }
-avr-device = { version = "0.4", optional = true}
+avr-device = { version = "0.7", features = ["atmega328p"], optional = true}
 
 [dependencies.arduino-hal]
 git = "https://github.com/rahix/avr-hal"
-rev = "4170a773d4d76cc93433d2455ed8b14e573ebe70"
+rev = "6807aaf32ea99bc860393b8f0fdaf4384ca011bc"
 features = ["arduino-uno"]
 
 [features]
