@@ -65,13 +65,13 @@ dependencies = [
 
 [[package]]
 name = "avr-progmem"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4026b5cfd2368953bed46ffaa1acc7e4ea398bb7a610743d11895a5187498076"
+checksum = "5e93a9dd7da8f4eb57c912367e337687e06a8db6452d8c89eeb9eff1e0d2ba2d"
 dependencies = [
  "cfg-if 1.0.1",
  "derivative",
- "ufmt 0.1.2",
+ "ufmt 0.2.0",
 ]
 
 [[package]]

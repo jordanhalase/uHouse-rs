@@ -12,7 +12,7 @@ bench = false
 
 [dependencies]
 ssd1306 = "0.7"
-avr-progmem = "0.3"
+avr-progmem = "0.4"
 ufmt = { version = "0.2", optional = true }
 avr-device = { version = "0.4", optional = true}
 
