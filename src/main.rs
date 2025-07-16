@@ -23,7 +23,7 @@ mod vec;
 use arduino_hal::{self, clock::Clock};
 use avr_progmem::progmem;
 use core::{iter::zip, mem::swap, panic::PanicInfo};
-use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
+use ssd1306::{I2CDisplayInterface, Ssd1306, prelude::*};
 
 use vec::*;
 
