@@ -14,7 +14,6 @@
 
 #![no_std]
 #![no_main]
-#![feature(generic_arg_infer)]
 #![feature(abi_avr_interrupt)]
 
 #[macro_use]
