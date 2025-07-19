@@ -1,0 +1,6 @@
+[general]
+board = "uno"
+
+# ravedude should open a serial console after flashing
+open-console = true
+serial-baudrate = 57600

@@ -11,7 +11,7 @@ test = false
 bench = false
 
 [dependencies]
-ssd1306 = "0.7"
+ssd1306 = "0.10"
 avr-progmem = "0.4"
 ufmt = { version = "0.2", optional = true }
 avr-device = { version = "0.7", features = ["atmega328p"], optional = true}
