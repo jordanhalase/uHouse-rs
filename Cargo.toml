@@ -1,6 +1,6 @@
 [package]
 name = "uhouse"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Jordan Halase <jordan@halase.me>"]
 edition = "2024"
 license = "MIT"

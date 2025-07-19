@@ -354,7 +354,7 @@ checksum = "e87a2ed6b42ec5e28cc3b94c09982969e9227600b2e3dcbc1db927a84c06bd69"
 
 [[package]]
 name = "uhouse"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arduino-hal",
  "avr-device",
