@@ -19,7 +19,7 @@
 #[macro_use]
 mod vec;
 
-use arduino_hal::{self, clock::Clock};
+use arduino_hal::{self, clock::Clock, spi};
 use avr_progmem::progmem;
 use core::{iter::zip, mem::swap, panic::PanicInfo};
 use ssd1306::{I2CDisplayInterface, Ssd1306, prelude::*};
@@ -221,16 +221,28 @@ fn main() -> ! {
         fps_counter
     };
 
-    let i2c = arduino_hal::I2c::new(
+    /*let i2c = arduino_hal::I2c::new(
         dp.TWI,
         pins.a4.into_pull_up_input(),
         pins.a5.into_pull_up_input(),
         400000,
-    );
+    );*/
 
-    let interface = I2CDisplayInterface::new(i2c);
+    let (mut spi, mut cs) = arduino_hal::Spi::new(
+        dp.SPI, 
+        pins.d13.into_output(),
+        pins.d11.into_output(),
+        pins.d12.into_pull_up_input(),
+        pins.d10.into_output(),
+        spi::Settings::default()
+    );
+    let spi = embedded_hal_bus::spi::ExclusiveDevice::new_no_delay(spi, cs).unwrap();
+
+    let interface = SPIInterface::new(spi, pins.d9);
+    //let interface = I2CDisplayInterface::new(i2c);
     let mut display =
         Ssd1306::new(interface, Display {}, DisplayRotation::Rotate0).into_buffered_graphics_mode();
+    
     display.init().unwrap();
 
     display.clear_buffer();
