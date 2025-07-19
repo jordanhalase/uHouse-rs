@@ -161,7 +161,7 @@ const LOC0: Vec2 = vec2!(0xfff, 0x47);
 
 /// Very rudimentary algorithm to discard off-screen geometry
 fn point_accept(v: Vec2) -> bool {
-    !(v.x < 0 || v.x >= SCREEN_HEIGHT || v.y < 0 || v.y >= SCREEN_HEIGHT)
+    !(v.x < 0 || v.x >= SCREEN_WIDTH || v.y < 0 || v.y >= SCREEN_HEIGHT)
 }
 
 /// Bresenham's line algorithm
