@@ -52,6 +52,5 @@ where
 
 #[avr_device::interrupt(atmega328p)]
 fn TIMER1_COMPA() {
-    // SAFETY: This is only otherwise modified by a singleton
     FPS_READY.store(true, Ordering::SeqCst);
 }

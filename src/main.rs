@@ -161,17 +161,7 @@ const LOC0: Vec2 = vec2!(0xfff, 0x47);
 
 /// Very rudimentary algorithm to discard off-screen geometry
 fn point_accept(v: Vec2) -> bool {
-    if v.x < 0 {
-        false
-    } else if v.x >= SCREEN_WIDTH {
-        false
-    } else if v.y < 0 {
-        false
-    } else if v.y >= SCREEN_HEIGHT {
-        false
-    } else {
-        true
-    }
+    !(v.x < 0 || v.x >= SCREEN_HEIGHT || v.y < 0 || v.y >= SCREEN_HEIGHT)
 }
 
 /// Bresenham's line algorithm
@@ -201,10 +191,8 @@ fn draw_line<F: FnMut(u32, u32)>(mut put_pixel: F, mut v0: Vec2, mut v1: Vec2) {
             if point_accept(v0.swap()) {
                 put_pixel(v0.y as u32, v0.x as u32);
             }
-        } else {
-            if point_accept(v0) {
-                put_pixel(v0.x as u32, v0.y as u32);
-            }
+        } else if point_accept(v0) {
+            put_pixel(v0.x as u32, v0.y as u32);
         }
 
         half_diff += dy;
