@@ -245,7 +245,7 @@ fn main() -> ! {
         Ssd1306::new(interface, Display {}, DisplayRotation::Rotate0).into_buffered_graphics_mode();
     display.init().unwrap();
 
-    display.clear();
+    display.clear_buffer();
 
     let mut screen_verts: [Vec2; NUM_VERTS] = [Vec2::default(); _];
 
@@ -288,7 +288,7 @@ fn main() -> ! {
             *screen = perspective_divided + SCREEN_CENTER;
         }
 
-        display.clear();
+        display.clear_buffer();
 
         // Faster line algorithm
         for pair in MESH_INDICES.iter() {
